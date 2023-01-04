@@ -7,6 +7,7 @@ library("broom")
 library("tidyverse")
 library("dplyr")
 library("magrittr")
+library("cowplot")
 
 postes <- read.csv("./dataset/postes_2020.csv", sep = ";")
 mapping <- read.csv("./dataset/varmod_postes_2020.csv", sep = ";")
@@ -36,6 +37,31 @@ ggplot() +
   coord_map()
 dev.off()
 
+
+# Age and work category relationship
+
+ageCS = postes %>% select(AGE_TR,CS) %>% drop_na()
+ageCS <- ageCS[ageCS$AGE > 0,]
+colSums(is.na(ageCS))
+ageCS <- ageCS %>% group_by(AGE_TR,CS) %>% mutate(quantity = n())
+ageCS <- ageCS[!(ageCS$CS %in% c(10,21,22,23,31,44,69)),]
+
+
+ageCS <- ageCS %>% group_by(AGE_TR,CS) %>% mutate(percentage = quantity/sum(quantity))
+
+
+graph1 <- ggplot(ageCS[ageCS$CS < 43,],aes(x=AGE_TR,y=quantity,color=CS)) +
+    geom_line()
+graph2 <- ggplot(ageCS[ageCS$CS >= 43 & ageCS$CS < 52,],aes(x=AGE_TR,y=quantity,color=CS)) +
+    geom_line()
+graph3 <- ggplot(ageCS[ageCS$CS >= 52 & ageCS$CS < 63,],aes(x=AGE_TR,y=quantity,color=CS)) +
+    geom_line()
+graph4 <- ggplot(ageCS[ageCS$CS >= 63,],aes(x=AGE_TR,y=quantity,color=CS)) +
+    geom_line()
+
+jpeg("./images/age_cs_lines.jpg",width=1920,height=1080)
+plot_grid(graph1,graph2,graph3,graph4)
+dev.off()
 # Checking distributions =============================================
 
 revenus = postes['TRBRUTT']
