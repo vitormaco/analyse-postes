@@ -1,0 +1,7 @@
+install.packages("ggplot2")
+install.packages("data.table")
+install.packages("geojsonio")
+install.packages("broom")
+install.packages("tidyverse")
+install.packages("dplyr")
+install.packages("magrittr")

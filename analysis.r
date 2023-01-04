@@ -1,100 +1,41 @@
-#  ============= METADATA sur le jeu de donnees =============
+# SETUP
 
-# https://www.insee.fr/fr/statistiques/6524154
-
-# Fichier "salariés"
-# Le fichier « salariés » décrit les caractéristiques du salarié, de son poste
-#  principal ainsi que des données récapitulatives tous postes confondus :
-#  rémunérations, heures salariées, total des indemnités de chômage.
-
-# Chaque enregistrement est constitué par la consolidation des périodes de
-# travail d'un salarié quels que soient ses employeurs.
-
-# Le fichier « salariés » est disponible au format dBase ou csv. Il contient
-# 31 variables et 2 373 366 observations.
-
-# Le fichier est issu d'un échantillon au 1/12e de la population salariée.
-# Une variable de pondération égale à 12 est présente dans le fichier Dbase,
-# et le fichier csv est pondéré par défaut par 12.
-
-# Avertissement : À partir du millésime 2013, la définition du 1/12e induit
-# que les salariés nés une année paire sont surreprésentés dans l'échantillon
-# (voir Documentation).
-
-#  ==========================================================
-
-
-
-library(ggplot2)
-library('data.table')
-
-
-# Fix age
-
+library("ggplot2")
+library("data.table")
+library("geojsonio")
+library("broom")
+library("tidyverse")
+library("dplyr")
+library("magrittr")
 
 postes <- read.csv("./dataset/postes_2020.csv", sep = ";")
 mapping <- read.csv("./dataset/varmod_postes_2020.csv", sep = ";")
 
-
-# Checking for missing elements
+# Check missing elements
 colSums(is.na(postes))
 
 
-# Plotting map ====================
-
-library('geojsonio')
-library(broom)
+# Map setup
 
 spdf <- geojson_read('departements.geojson',what='sp')
 spdf_fortified <- tidy(spdf,region="code")
-str(spdf_fortified)
-head(spdf_fortified)
 
-ggplot() +
-  geom_polygon(data = spdf_fortified, aes( x = long, y = lat, group = group), fill="white", color="grey") +
-  theme_void() +
-  coord_map()
+# Percentage of people earning more/less than X euros yearly per region
+tranchesRevenuParRegion <- postes %>% select(TRBRUTT,DEPR) %>% filter(DEPR != "") %>% count(DEPR,TRBRUTT)
+percentageRevenuParRegion = tranchesRevenuParRegion %>% group_by(DEPR) %>% mutate(percentage = n/sum(n)) %>%  filter(TRBRUTT >= 22) %>% group_by(DEPR) %>% summarise(sum = sum(percentage))
+percentageRevenuParRegion$DEPR = as.character(percentageRevenuParRegion$DEPR)
 
-library(tidyverse)
-revenusRegionsDf <- postes %>% select(TRBRUTT,DEPR)
-# Cleaning unknown values
-revenusRegionsDf = revenusRegionsDf[revenusRegionsDf$DEPR != "",]
-str(revenusRegionsDf)
+spdf_fortified <- spdf_fortified %>% left_join(. , percentageRevenuParRegion, by=c("id"="DEPR"))
 
-trancheRevenusDf = revenusRegionsDf %>% count(DEPR,TRBRUTT)
-
-nrow(trancheRevenusDf)
-str(trancheRevenusDf)
-head(trancheRevenusDf)
-
-
-
-library(dplyr)
-library(magrittr)
-trancheRevenusDf$DEPR = as.character(trancheRevenusDf$DEPR)
-str(trancheRevenusDf)
-
-
-
-spdf_fortified <- spdf_fortified %>% left_join(. , trancheRevenusDf[1:2424,], by=c("id"="DEPR"))
-str(spdf_fortified)
-head(spdf_fortified)
-
-
-
-
-df_0 = spdf_fortified[spdf_fortified$TRBRUTT == 12,]
-
-
-
+# Save map
 jpeg("heat_map_salaries.jpg",width=1920,height=1080)
 ggplot() +
-  geom_polygon(data = spdf_fortified, aes(fill = n, x = long, y = lat, group = group)) +
+  geom_polygon(data = spdf_fortified, aes(fill = sum, x = long, y = lat, group = group)) +
   scale_fill_gradient(low='#eeebc5',high='#bb0600') +
   theme_void() +
-  coord_map() +
-  facet_wrap(vars(TRBRUTT))
+  coord_map()
 dev.off()
+
 # Checking distributions =============================================
 
 revenus = postes['TRBRUTT']
