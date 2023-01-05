@@ -18,14 +18,17 @@ mapping <- read.csv("./dataset/varmod_postes_2020.csv", sep = ";")
 spdf <- geojson_read("departements.geojson", what = "sp")
 spdf_fortified <- tidy(spdf, region = "code")
 
+# Filter dataframe and add data
 trancheRevenuParRegion <- postes %>%
     select(TRBRUTT, DEPR) %>%
     filter(DEPR != "") %>%
     dplyr::count(DEPR, TRBRUTT)
+# Fetch number of people per region
 nbPeoplePerRegion <- trancheRevenuParRegion %>%
     group_by(DEPR) %>%
     dplyr::summarise(n = sum(n))
 
+# Create low income percentage df
 tmp <- trancheRevenuParRegion %>% filter(TRBRUTT <= 12)
 tmp <- tmp %>%
     group_by(DEPR) %>%
@@ -33,6 +36,7 @@ tmp <- tmp %>%
 tmp <- tmp %>% left_join(., nbPeoplePerRegion, by = c("DEPR" = "DEPR"))
 percentageRevenuParRegion$lowPercentage <- tmp$regroup / tmp$n
 
+# Create high income percentage df
 tmp <- trancheRevenuParRegion %>% filter(TRBRUTT > 21)
 tmp <- tmp %>%
     group_by(DEPR) %>%
@@ -42,10 +46,11 @@ percentageRevenuParRegion$highPercentage <- tmp$regroup / tmp$n
 
 percentageRevenuParRegion$DEPR <- as.character(percentageRevenuParRegion$DEPR)
 
-
+# Merge percentages and geojson data for plotting
 spdf_fortified <- spdf_fortified %>% left_join(., percentageRevenuParRegion, by = c("id" = "DEPR"))
 
 
+# Color based on percentages and polygons on geojson data
 graph1 <- ggplot() +
     geom_polygon(data = spdf_fortified, aes(fill = lowPercentage, x = long, y = lat, group = group)) +
     scale_fill_gradient(low = "#eeebc5", high = "#bb0600") +
@@ -59,7 +64,6 @@ graph2 <- ggplot() +
     coord_map()
 
 # Generate and save map
-
 jpeg("./images/heat_map_salaries.jpg", width = 1920, height = 1080)
 plot_grid(graph1, graph2)
 dev.off()
@@ -102,10 +106,11 @@ dev.off()
 
 repartitionSexe <- postes %>% dplyr::count(TRBRUTT, SEXE, name = "count")
 
-# parse data
-repartitionSexe$SEXE <- replace(as.character(repartitionSexe$SEXE), repartitionSexe$SEXE == "1", "Homme")
-repartitionSexe$SEXE <- replace(as.character(repartitionSexe$SEXE), repartitionSexe$SEXE == "2", "Femme")
+# modify encoding and parse data
+repartitioniSexe$SEXE[repartitioniSexe$SEXE == 1] <- "Homme"
+repartitioniSexe$SEXE[repartitioniSexe$SEXE == 2] <- "Femme"
 trbrutt_mapping <- mapping[mapping$COD_VAR == "TRBRUTT", ]
+# Match encoding to its definition
 repartitionSexe$TRBRUTT <- factor(sprintf("%02d", repartitionSexe$TRBRUTT), levels = trbrutt_mapping$COD_MOD, labels = trbrutt_mapping$LIB_MOD)
 
 # normalise data to match france population
@@ -133,9 +138,11 @@ df <- postes %>%
 
 # create factors using the varmod labels
 trbrutt_mapping <- mapping[mapping$COD_VAR == "TRBRUTT", ]
+# Match encoding to its definition
 df$TRBRUTT <- factor(sprintf("%02d", df$TRBRUTT), levels = trbrutt_mapping$COD_MOD, labels = trbrutt_mapping$LIB_MOD)
 
 age_mapping <- mapping[mapping$COD_VAR == "AGE_TR", ]
+# Match encoding to its definition
 df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, labels = age_mapping$LIB_MOD)
 
 df$n <- df$n * 12 / 1000
@@ -164,6 +171,7 @@ df$SEXE[df$SEXE == 1] <- "Homme"
 df$SEXE[df$SEXE == 2] <- "Femme"
 
 age_mapping <- mapping[mapping$COD_VAR == "AGE_TR", ]
+# Match encoding to its definition
 df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, labels = age_mapping$LIB_MOD)
 df <- mutate(df, n_graphic = ifelse(df$SEXE == "Homme", n, -n))
 
