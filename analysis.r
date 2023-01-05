@@ -118,3 +118,23 @@ ggplot(df, aes(AGE_TR, TRBRUTT, fill = n)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 dev.off()
 
+df <- postes %>%
+    filter(A6 != "") %>%
+    filter(AGE_TR != "") %>%
+    dplyr::count(AGE_TR, SEXE, A6)
+
+df$SEXE[df$SEXE == 1] <- "Homme"
+df$SEXE[df$SEXE == 2] <- "Femme"
+
+age_mapping <- mapping[mapping$COD_VAR == "AGE_TR", ]
+df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, labels = age_mapping$LIB_MOD)
+df <- mutate(df, n_graphic = ifelse(df$SEXE == "Homme", n, -n))
+
+jpeg("images/travailleurs-par-sexe-par-domaine.jpg")
+ggplot(df,
+       aes(x = n_graphic,
+           y = AGE_TR,
+           fill = SEXE)) +
+    facet_wrap(vars(A6)) +
+    geom_col()
+dev.off()
