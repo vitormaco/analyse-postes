@@ -167,7 +167,11 @@ age_mapping <- mapping[mapping$COD_VAR == "AGE_TR", ]
 df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, labels = age_mapping$LIB_MOD)
 df <- mutate(df, n_graphic = ifelse(df$SEXE == "Homme", n, -n))
 
-jpeg("images/travailleurs-par-sexe-par-domaine.jpg")
+a6_mapping <- mapping[mapping$COD_VAR == "A6", ]
+df$label <- mapvalues(df$A6, a6_mapping$COD_MOD, a6_mapping$LIB_MOD)
+df$n_graphic = df$n_graphic * 12 / 1000
+
+jpeg("images/travailleurs-par-sexe-par-domaine.jpg", width = 1280, height = 540)
 ggplot(
     df,
         aes(
@@ -177,11 +181,11 @@ ggplot(
         )
     ) +
     labs(
-        title = "Salaire par age",
-        x = "Age",
-        y = "Tranche salarial",
-        fill = "Nombre d'employes (Milliers)"
+        title = "Nombre d'employes par sexe et par domaine",
+        x = "Nombre d'employes (Milliers)",
+        y = "Age",
+        fill = "Sexe"
     ) +
-    facet_wrap(vars(A6)) +
+    facet_wrap(vars(label)) +
     geom_col()
 dev.off()
