@@ -72,36 +72,37 @@ ageCS <- postes %>%
     select(AGE_TR, CS) %>%
     drop_na() %>%
     filter(AGE_TR > 0)
-# count quantity and percentage in each range
-ageCS <- ageCS %>% dplyr::count(AGE_TR, CS)
-ageCS$percentage <- ageCS$n / sum(ageCS$n)
+
+# normalise data by percentage
+ageCS <- ageCS %>% dplyr::count(AGE_TR, CS, name="n")
+ageCS <- ageCS %>% group_by(CS) %>% dplyr::mutate(cs_total = sum(n))
+ageCS$percentage <- 100 * ageCS$n / ageCS$cs_total
+
 # take out insignificative data (manually selected)
-ageCS <- filter(ageCS, !(CS %in% c(10, 21, 22, 23, 31, 44, 69)))
-# get data labels
+ageCS <- filter(ageCS, CS %in% c(31, 55, 67, 69, 33, 45, 62))
+
 age_mapping <- mapping[mapping$COD_VAR == "CS", ]
 ageCS$label <- mapvalues(ageCS$CS, age_mapping$COD_MOD, age_mapping$LIB_MOD)
 
-# generate graphs
-graph1 <- ggplot(ageCS[ageCS$CS < 43, ], aes(x = AGE_TR, y = quantity, color = label)) +
+jpeg("./images/age_cs_lines.jpg",  width = 960, height = 540)
+ggplot(ageCS, aes(x = AGE_TR, y = percentage, color = label)) +
+    labs(
+        title = "Pourcentage d'employes par age",
+        x = "Age",
+        y = "Pourcentage",
+        color = "categorie professionelle"
+    ) +
+    theme(legend.position="bottom") +
     geom_line()
-graph2 <- ggplot(ageCS[ageCS$CS >= 43 & ageCS$CS < 52, ], aes(x = AGE_TR, y = quantity, color = label)) +
-    geom_line()
-graph3 <- ggplot(ageCS[ageCS$CS >= 52 & ageCS$CS < 63, ], aes(x = AGE_TR, y = quantity, color = label)) +
-    geom_line()
-graph4 <- ggplot(ageCS[ageCS$CS >= 63, ], aes(x = AGE_TR, y = quantity, color = label)) +
-    geom_line()
-
-jpeg("./images/age_cs_lines.jpg", width = 1920, height = 1080)
-plot_grid(graph1, graph2, graph3, graph4)
 dev.off()
 
-# ============== salaire par tranche par sexe ================
+# ============== salaire par tranche de salaire par sexe ================
 
 repartitionSEXE <- postes %>% select(TRBRUTT, SEXE)
 repartitionSEXE$SEXE <- replace(as.character(repartitionSEXE$SEXE), repartitionSEXE$SEXE == "1", "H")
 repartitionSEXE$SEXE <- replace(as.character(repartitionSEXE$SEXE), repartitionSEXE$SEXE == "2", "F")
 
-jpeg("SEXE_repartition.jpg")
+jpeg("images/repartition-sexe-salaire.jpg")
 repartitionSEXE %>%
     ggplot(aes(x = TRBRUTT, fill = SEXE)) +
     geom_histogram(binwidth = 1, color = "white", alpha = .5, position = "identity")
