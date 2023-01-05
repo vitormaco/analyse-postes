@@ -1,22 +1,19 @@
-# SETUP
+ # SETUP
 
 library("ggplot2")
-library("data.table")
-library("geojsonio")
-library("broom")
 library("tidyverse")
+library("plyr")
 library("dplyr")
 library("magrittr")
 library('cowplot')
 
+
 postes <- read.csv("./dataset/postes_2020.csv", sep = ";")
 mapping <- read.csv("./dataset/varmod_postes_2020.csv", sep = ";")
 
-# Check missing elements
-colSums(is.na(postes))
 
 
-# Map setup
+
 
 spdf <- geojson_read('departements.geojson',what='sp')
 spdf_fortified <- tidy(spdf,region="code")
@@ -28,7 +25,21 @@ percentageRevenuParRegion = tranchesRevenuParRegion %>% group_by(DEPR) %>% mutat
 percentageRevenuParRegion['lowPercentage'] <- tranchesRevenuParRegion %>% group_by(DEPR) %>% mutate(percentage = n/sum(n)) %>%  filter(TRBRUTT <= 13) %>% group_by(DEPR) %>% summarise(lowPercentage = sum(percentage)) %>% select(lowPercentage)
 percentageRevenuParRegion$DEPR = as.character(percentageRevenuParRegion$DEPR)
 
-spdf_fortified <- spdf_fortified %>% left_join(. , percentageRevenuParRegion, by=c("id"="DEPR"))
+create_varmod_factor <- function(df, column) {
+    factor_mapping = mapping[mapping$COD_VAR==column,]
+    values = sprintf("%02d", df[[column]])
+    print(values)
+    return(factor(values,
+    levels=factor_mapping$COD_MOD,
+    labels=factor_mapping$LIB_MOD))
+}
+
+df <- postes %>% dplyr::count(TRBRUTT, AGE_TR) %>%
+    filter(AGE_TR != 0)
+
+df$TRBRUTT = create_varmod_factor(df, "TRBRUTT")
+df$AGE_TR = create_varmod_factor(df, "AGE_TR")
+
 
 graph1 <- ggplot() +
   geom_polygon(data = spdf_fortified, aes(fill=lowPercentage,x = long, y = lat, group = group)) +
@@ -127,3 +138,8 @@ dev.off()
 # Revenus par age
 
 # Revenus par region
+jpeg('heatmap-salaire-par-age.jpg')
+ggplot(df, aes(AGE_TR, TRBRUTT, fill = n)) +
+geom_tile() +
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
