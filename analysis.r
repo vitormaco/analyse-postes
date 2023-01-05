@@ -55,16 +55,22 @@ graph1 <- ggplot() +
     geom_polygon(data = spdf_fortified, aes(fill = lowPercentage, x = long, y = lat, group = group)) +
     scale_fill_gradient(low = "#eeebc5", high = "#bb0600") +
     theme_void() +
+    labs(
+        title = "Pourcentage de salaries en-dessous de 15 000 bruts annuels"
+    ) +
     coord_map()
 
 graph2 <- ggplot() +
     geom_polygon(data = spdf_fortified, aes(fill = highPercentage, x = long, y = lat, group = group)) +
     scale_fill_gradient(low = "#eeebc5", high = "#bb0600") +
     theme_void() +
+    labs(
+        title = "Pourcentage de salaries au-dessus de 40 000 bruts annuels"
+    ) +
     coord_map()
 
 # Generate and save map
-jpeg("./images/heat_map_salaries.jpg", width = 1920, height = 1080)
+jpeg("./images/heat_map_salaries.jpg", width = 960, height = 540)
 plot_grid(graph1, graph2)
 dev.off()
 
@@ -87,6 +93,7 @@ ageCS$percentage <- 100 * ageCS$n / ageCS$cs_total
 # take out insignificative data (manually selected)
 ageCS <- filter(ageCS, CS %in% c(31, 55, 67, 69, 33, 45, 62))
 
+# Select social/pro category
 age_mapping <- mapping[mapping$COD_VAR == "CS", ]
 ageCS$label <- mapvalues(ageCS$CS, age_mapping$COD_MOD, age_mapping$LIB_MOD)
 
@@ -167,6 +174,7 @@ df <- postes %>%
     filter(AGE_TR != "") %>%
     dplyr::count(AGE_TR, SEXE, A6)
 
+# Replace encoding
 df$SEXE[df$SEXE == 1] <- "Homme"
 df$SEXE[df$SEXE == 2] <- "Femme"
 
@@ -175,6 +183,7 @@ age_mapping <- mapping[mapping$COD_VAR == "AGE_TR", ]
 df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, labels = age_mapping$LIB_MOD)
 df <- mutate(df, n_graphic = ifelse(df$SEXE == "Homme", n, -n))
 
+# Select work domain
 a6_mapping <- mapping[mapping$COD_VAR == "A6", ]
 df$label <- mapvalues(df$A6, a6_mapping$COD_MOD, a6_mapping$LIB_MOD)
 df$n_graphic = df$n_graphic * 12 / 1000
