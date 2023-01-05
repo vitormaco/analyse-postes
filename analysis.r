@@ -74,8 +74,10 @@ ageCS <- postes %>%
     filter(AGE_TR > 0)
 
 # normalise data by percentage
-ageCS <- ageCS %>% dplyr::count(AGE_TR, CS, name="n")
-ageCS <- ageCS %>% group_by(CS) %>% dplyr::mutate(cs_total = sum(n))
+ageCS <- ageCS %>% dplyr::count(AGE_TR, CS, name = "n")
+ageCS <- ageCS %>%
+    group_by(CS) %>%
+    dplyr::mutate(cs_total = sum(n))
 ageCS$percentage <- 100 * ageCS$n / ageCS$cs_total
 
 # take out insignificative data (manually selected)
@@ -84,7 +86,7 @@ ageCS <- filter(ageCS, CS %in% c(31, 55, 67, 69, 33, 45, 62))
 age_mapping <- mapping[mapping$COD_VAR == "CS", ]
 ageCS$label <- mapvalues(ageCS$CS, age_mapping$COD_MOD, age_mapping$LIB_MOD)
 
-jpeg("./images/age_cs_lines.jpg",  width = 960, height = 540)
+jpeg("./images/age_cs_lines.jpg", width = 960, height = 540)
 ggplot(ageCS, aes(x = AGE_TR, y = percentage, color = label)) +
     labs(
         title = "Pourcentage d'employes par age",
@@ -92,20 +94,34 @@ ggplot(ageCS, aes(x = AGE_TR, y = percentage, color = label)) +
         y = "Pourcentage",
         color = "categorie professionelle"
     ) +
-    theme(legend.position="bottom") +
+    theme(legend.position = "bottom") +
     geom_line()
 dev.off()
 
 # ============== salaire par tranche de salaire par sexe ================
 
-repartitionSEXE <- postes %>% select(TRBRUTT, SEXE)
-repartitionSEXE$SEXE <- replace(as.character(repartitionSEXE$SEXE), repartitionSEXE$SEXE == "1", "H")
-repartitionSEXE$SEXE <- replace(as.character(repartitionSEXE$SEXE), repartitionSEXE$SEXE == "2", "F")
+repartitionSexe <- postes %>% dplyr::count(TRBRUTT, SEXE, name = "count")
 
-jpeg("images/repartition-sexe-salaire.jpg")
-repartitionSEXE %>%
-    ggplot(aes(x = TRBRUTT, fill = SEXE)) +
-    geom_histogram(binwidth = 1, color = "white", alpha = .5, position = "identity")
+# parse data
+repartitionSexe$SEXE <- replace(as.character(repartitionSexe$SEXE), repartitionSexe$SEXE == "1", "Homme")
+repartitionSexe$SEXE <- replace(as.character(repartitionSexe$SEXE), repartitionSexe$SEXE == "2", "Femme")
+trbrutt_mapping <- mapping[mapping$COD_VAR == "TRBRUTT", ]
+repartitionSexe$TRBRUTT <- factor(sprintf("%02d", repartitionSexe$TRBRUTT), levels = trbrutt_mapping$COD_MOD, labels = trbrutt_mapping$LIB_MOD)
+
+# normalise data to match france population
+repartitionSexe$count = repartitionSexe$count*12/1000000
+
+jpeg("images/repartition-sexe-salaire.jpg", width = 960, height = 540)
+repartitionSexe %>%
+    ggplot(aes(x = TRBRUTT, y = count, fill = SEXE)) +
+    labs(
+        title = "Nombre d'employes par tranche de salaire et sexe",
+        x = "Tranche salarial",
+        y = "Nombre d'employes (Millions)",
+        color = "categorie professionelle"
+    ) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    geom_bar(position = "dodge", stat = "identity", width=0.5)
 dev.off()
 
 # =============== heatmap salaire x age ==================
