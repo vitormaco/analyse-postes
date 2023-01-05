@@ -12,40 +12,49 @@ library("broom")
 postes <- read.csv("./dataset/postes_2020.csv", sep = ";")
 mapping <- read.csv("./dataset/varmod_postes_2020.csv", sep = ";")
 
-# Read geojson
-spdf <- geojson_read('departements.geojson',what='sp')
-spdf_fortified <- tidy(spdf,region="code")
+# =========== Map with Percentage of people earing more/less than X euros yearly per region =========
 
-# Percentage of people earing more/less than X euros yearly per region
-trancheRevenuParRegion <- postes %>% select(TRBRUTT,DEPR) %>% filter(DEPR != "") %>% dplyr::count(DEPR,TRBRUTT)
-nbPeoplePerRegion <- trancheRevenuParRegion %>% group_by(DEPR) %>% dplyr::summarise(n = sum(n))
+# Read geojson
+spdf <- geojson_read("departements.geojson", what = "sp")
+spdf_fortified <- tidy(spdf, region = "code")
+
+trancheRevenuParRegion <- postes %>%
+    select(TRBRUTT, DEPR) %>%
+    filter(DEPR != "") %>%
+    dplyr::count(DEPR, TRBRUTT)
+nbPeoplePerRegion <- trancheRevenuParRegion %>%
+    group_by(DEPR) %>%
+    dplyr::summarise(n = sum(n))
 
 tmp <- trancheRevenuParRegion %>% filter(TRBRUTT <= 12)
-tmp <- tmp %>% group_by(DEPR) %>% dplyr::summarise(regroup = sum(n))
-tmp <- tmp %>% left_join(. , nbPeoplePerRegion, by=c("DEPR"="DEPR"))
-percentageRevenuParRegion$lowPercentage <- tmp$regroup/tmp$n
-
+tmp <- tmp %>%
+    group_by(DEPR) %>%
+    dplyr::summarise(regroup = sum(n))
+tmp <- tmp %>% left_join(., nbPeoplePerRegion, by = c("DEPR" = "DEPR"))
+percentageRevenuParRegion$lowPercentage <- tmp$regroup / tmp$n
 
 tmp <- trancheRevenuParRegion %>% filter(TRBRUTT > 21)
-tmp <- tmp %>% group_by(DEPR) %>% dplyr::summarise(regroup = sum(n))
-tmp <- tmp %>% left_join(. , nbPeoplePerRegion, by=c("DEPR"="DEPR"))
-percentageRevenuParRegion$highPercentage <- tmp$regroup/tmp$n
+tmp <- tmp %>%
+    group_by(DEPR) %>%
+    dplyr::summarise(regroup = sum(n))
+tmp <- tmp %>% left_join(., nbPeoplePerRegion, by = c("DEPR" = "DEPR"))
+percentageRevenuParRegion$highPercentage <- tmp$regroup / tmp$n
 
-percentageRevenuParRegion$DEPR = as.character(percentageRevenuParRegion$DEPR)
+percentageRevenuParRegion$DEPR <- as.character(percentageRevenuParRegion$DEPR)
 
 
-spdf_fortified <- spdf_fortified %>% left_join(. , percentageRevenuParRegion, by=c("id"="DEPR"))
+spdf_fortified <- spdf_fortified %>% left_join(., percentageRevenuParRegion, by = c("id" = "DEPR"))
 
 
 graph1 <- ggplot() +
-    geom_polygon(data = spdf_fortified, aes(fill=lowPercentage,x = long, y = lat, group = group)) +
-    scale_fill_gradient(low='#eeebc5',high='#bb0600') +
+    geom_polygon(data = spdf_fortified, aes(fill = lowPercentage, x = long, y = lat, group = group)) +
+    scale_fill_gradient(low = "#eeebc5", high = "#bb0600") +
     theme_void() +
     coord_map()
 
 graph2 <- ggplot() +
-    geom_polygon(data = spdf_fortified, aes(fill=highPercentage,x = long, y = lat, group = group)) +
-    scale_fill_gradient(low='#eeebc5',high='#bb0600') +
+    geom_polygon(data = spdf_fortified, aes(fill = highPercentage, x = long, y = lat, group = group)) +
+    scale_fill_gradient(low = "#eeebc5", high = "#bb0600") +
     theme_void() +
     coord_map()
 
@@ -86,7 +95,7 @@ jpeg("./images/age_cs_lines.jpg", width = 1920, height = 1080)
 plot_grid(graph1, graph2, graph3, graph4)
 dev.off()
 
-# COMPARISON SALAIRE PAR TRANCHE PAR SEXE
+# ============== salaire par tranche par sexe ================
 
 repartitionSEXE <- postes %>% select(TRBRUTT, SEXE)
 repartitionSEXE$SEXE <- replace(as.character(repartitionSEXE$SEXE), repartitionSEXE$SEXE == "1", "H")
@@ -98,7 +107,7 @@ repartitionSEXE %>%
     geom_histogram(binwidth = 1, color = "white", alpha = .5, position = "identity")
 dev.off()
 
-# =============== heatmap salaire x age ===============
+# =============== heatmap salaire x age ==================
 
 # get and filter needed data
 df <- postes %>%
@@ -116,7 +125,7 @@ df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, la
 jpeg("images/heatmap-salaire-par-age.jpg")
 ggplot(df, aes(AGE_TR, TRBRUTT, fill = n)) +
     geom_tile() +
-    scale_fill_gradient(low="purple", high="yellow") +
+    scale_fill_gradient(low = "purple", high = "yellow") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 dev.off()
 
@@ -133,10 +142,14 @@ df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, la
 df <- mutate(df, n_graphic = ifelse(df$SEXE == "Homme", n, -n))
 
 jpeg("images/travailleurs-par-sexe-par-domaine.jpg")
-ggplot(df,
-       aes(x = n_graphic,
-           y = AGE_TR,
-           fill = SEXE)) +
+ggplot(
+    df,
+    aes(
+        x = n_graphic,
+        y = AGE_TR,
+        fill = SEXE
+    )
+) +
     facet_wrap(vars(A6)) +
     geom_col()
 dev.off()
