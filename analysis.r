@@ -109,7 +109,7 @@ trbrutt_mapping <- mapping[mapping$COD_VAR == "TRBRUTT", ]
 repartitionSexe$TRBRUTT <- factor(sprintf("%02d", repartitionSexe$TRBRUTT), levels = trbrutt_mapping$COD_MOD, labels = trbrutt_mapping$LIB_MOD)
 
 # normalise data to match france population
-repartitionSexe$count = repartitionSexe$count*12/1000000
+repartitionSexe$count <- repartitionSexe$count * 12 / 1000000
 
 jpeg("images/repartition-sexe-salaire.jpg", width = 960, height = 540)
 repartitionSexe %>%
@@ -121,7 +121,7 @@ repartitionSexe %>%
         color = "categorie professionelle"
     ) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-    geom_bar(position = "dodge", stat = "identity", width=0.5)
+    geom_bar(position = "dodge", stat = "identity", width = 0.5)
 dev.off()
 
 # =============== heatmap salaire x age ==================
@@ -138,13 +138,22 @@ df$TRBRUTT <- factor(sprintf("%02d", df$TRBRUTT), levels = trbrutt_mapping$COD_M
 age_mapping <- mapping[mapping$COD_VAR == "AGE_TR", ]
 df$AGE_TR <- factor(sprintf("%02d", df$AGE_TR), levels = age_mapping$COD_MOD, labels = age_mapping$LIB_MOD)
 
+df$n <- df$n * 12 / 1000
 # generate heatmap
-jpeg("images/heatmap-salaire-par-age.jpg")
+jpeg("images/heatmap-salaire-par-age.jpg", width = 720, height = 540)
 ggplot(df, aes(AGE_TR, TRBRUTT, fill = n)) +
     geom_tile() +
+    labs(
+        title = "Salaire par age",
+        x = "Age",
+        y = "Tranche salarial",
+        fill = "Nombre d'employes (Milliers)"
+    ) +
     scale_fill_gradient(low = "purple", high = "yellow") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 dev.off()
+
+# =============== estratification of man and women per work domain ================
 
 df <- postes %>%
     filter(A6 != "") %>%
@@ -161,12 +170,18 @@ df <- mutate(df, n_graphic = ifelse(df$SEXE == "Homme", n, -n))
 jpeg("images/travailleurs-par-sexe-par-domaine.jpg")
 ggplot(
     df,
-    aes(
-        x = n_graphic,
-        y = AGE_TR,
-        fill = SEXE
-    )
-) +
+        aes(
+            x = n_graphic,
+            y = AGE_TR,
+            fill = SEXE
+        )
+    ) +
+    labs(
+        title = "Salaire par age",
+        x = "Age",
+        y = "Tranche salarial",
+        fill = "Nombre d'employes (Milliers)"
+    ) +
     facet_wrap(vars(A6)) +
     geom_col()
 dev.off()
