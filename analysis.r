@@ -1,45 +1,66 @@
-# SETUP
+ # SETUP
 
 library("ggplot2")
-library("data.table")
-library("geojsonio")
-library("broom")
 library("tidyverse")
+library("plyr")
 library("dplyr")
 library("magrittr")
 library("cowplot")
 
+
 postes <- read.csv("./dataset/postes_2020.csv", sep = ";")
 mapping <- read.csv("./dataset/varmod_postes_2020.csv", sep = ";")
 
-# Check missing elements
-colSums(is.na(postes))
 
 
-# Map setup
+
 
 spdf <- geojson_read('departements.geojson',what='sp')
 spdf_fortified <- tidy(spdf,region="code")
+str(spdf_fortified)
 
-# Percentage of people earning more/less than X euros yearly per region
+# Percentage of people earningh more/less than X euros yearly per region
 tranchesRevenuParRegion <- postes %>% select(TRBRUTT,DEPR) %>% filter(DEPR != "") %>% count(DEPR,TRBRUTT)
-percentageRevenuParRegion = tranchesRevenuParRegion %>% group_by(DEPR) %>% mutate(percentage = n/sum(n)) %>%  filter(TRBRUTT >= 22) %>% group_by(DEPR) %>% summarise(sum = sum(percentage))
+percentageRevenuParRegion = tranchesRevenuParRegion %>% group_by(DEPR) %>% mutate(percentage = n/sum(n)) %>%  filter(TRBRUTT >= 22) %>% group_by(DEPR) %>% summarise(highPercentage = sum(percentage))
+percentageRevenuParRegion['lowPercentage'] <- tranchesRevenuParRegion %>% group_by(DEPR) %>% mutate(percentage = n/sum(n)) %>%  filter(TRBRUTT <= 13) %>% group_by(DEPR) %>% summarise(lowPercentage = sum(percentage)) %>% select(lowPercentage)
 percentageRevenuParRegion$DEPR = as.character(percentageRevenuParRegion$DEPR)
 
-spdf_fortified <- spdf_fortified %>% left_join(. , percentageRevenuParRegion, by=c("id"="DEPR"))
+create_varmod_factor <- function(df, column) {
+    factor_mapping = mapping[mapping$COD_VAR==column,]
+    values = sprintf("%02d", df[[column]])
+    print(values)
+    return(factor(values,
+    levels=factor_mapping$COD_MOD,
+    labels=factor_mapping$LIB_MOD))
+}
 
-# Save map
-jpeg("heat_map_salaries.jpg",width=1920,height=1080)
-ggplot() +
-  geom_polygon(data = spdf_fortified, aes(fill = sum, x = long, y = lat, group = group)) +
+df <- postes %>% dplyr::count(TRBRUTT, AGE_TR) %>%
+    filter(AGE_TR != 0)
+
+df$TRBRUTT = create_varmod_factor(df, "TRBRUTT")
+df$AGE_TR = create_varmod_factor(df, "AGE_TR")
+
+
+graph1 <- ggplot() +
+  geom_polygon(data = spdf_fortified, aes(fill=lowPercentage,x = long, y = lat, group = group)) +
   scale_fill_gradient(low='#eeebc5',high='#bb0600') +
   theme_void() +
   coord_map()
+
+graph2 <- ggplot() +
+  geom_polygon(data = spdf_fortified, aes(fill=highPercentage,x = long, y = lat, group = group)) +
+  scale_fill_gradient(low='#eeebc5',high='#bb0600') +
+  theme_void() +
+  coord_map()
+
+# Save map
+jpeg("./images/heat_map_salaries.jpg",width=1920,height=1080)
+plot_grid(graph1,graph2)
 dev.off()
 
 
-# Age and work category relationship
 
+# Age and work category relationship
 ageCS = postes %>% select(AGE_TR,CS) %>% drop_na()
 ageCS <- ageCS[ageCS$AGE > 0,]
 colSums(is.na(ageCS))
@@ -62,6 +83,7 @@ graph4 <- ggplot(ageCS[ageCS$CS >= 63,],aes(x=AGE_TR,y=quantity,color=CS)) +
 jpeg("./images/age_cs_lines.jpg",width=1920,height=1080)
 plot_grid(graph1,graph2,graph3,graph4)
 dev.off()
+
 # Checking distributions =============================================
 
 revenus = postes['TRBRUTT']
@@ -141,3 +163,8 @@ dev.off()
 # Revenus par age
 
 # Revenus par region
+jpeg('heatmap-salaire-par-age.jpg')
+ggplot(df, aes(AGE_TR, TRBRUTT, fill = n)) +
+geom_tile() +
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
